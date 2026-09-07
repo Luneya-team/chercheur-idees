@@ -1,0 +1,41 @@
+name: Chercheur d'idees
+
+on:
+  schedule:
+    - cron: '0 * * * *'      # toutes les heures
+  workflow_dispatch:          # et a la demande, depuis l'onglet Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chercheur
+  cancel-in-progress: false
+
+jobs:
+  chercher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Chercher
+        env:
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
+          MODELE: openrouter/free
+          TOURS: '3'
+          PAR_TOUR: '4'
+        run: python chercheur.py
+
+      - name: Enregistrer les resultats
+        run: |
+          git config user.name  "chercheur"
+          git config user.email "chercheur@users.noreply.github.com"
+          git add base.json resultats.md
+          git diff --staged --quiet || git commit -m "chercheur: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git pull --rebase --autostash || true
+          git push
